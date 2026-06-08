@@ -1,6 +1,7 @@
 # turn raw images into pyTorch DataLoader
 # we need to turn folders of images into batches the model can learn from
-import explore_data
+import os
+DATASET_DIR = "backend/plantvillagedata"
 from torchvision import transforms, datasets
 from torch.utils.data import DataLoader, random_split
 
@@ -22,7 +23,7 @@ transform = transforms.Compose([
 # load dataset (pytorch reads images and automatically assigns labels using this)
 
 dataset = datasets.ImageFolder(
-    root = explore_data.DATASET_DIR,
+    root = DATASET_DIR,
     transform = transform
 )
 
@@ -38,5 +39,16 @@ train_data, val_data = random_split(dataset, [train_size, val_size])
 train_loader = DataLoader(train_data, batch_size = 32, shuffle= True)
 val_loader = DataLoader(val_data, batch_size = 32)
 
+# DEBUG INFO
 
+if __name__ == "__main__":
+    print("Dataset size:", len(dataset))
+    print("Classes:", dataset.classes)
 
+    # grab one batch from dataloader
+    images, labels = next(iter(train_loader))
+
+    print("Batch image shape:", images.shape)
+    print("Batch label shape:", labels.shape)
+
+    print("First 5 labels:", labels[:5])

@@ -36,7 +36,6 @@ plt.figure(figsize=(10,4))
 sns.barplot(x=list(class_counts.keys()), y=list(class_counts.values()))
 plt.xticks(rotation=90, fontsize = 8)
 plt.title("Class Distribution (Imbalanced Dataset)")
-plt.tight_layout()
 plt.show()
 
 
