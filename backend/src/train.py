@@ -10,6 +10,7 @@ optimizer step'''
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import os
 
 from dataset import train_loader, val_loader
 from model import get_model
@@ -43,17 +44,26 @@ for epoch in range(epochs):
     correct = 0
     total = 0
 
-    for images, labels in train_loader:
+    for batch_idx, (images, labels) in enumerate(train_loader):
+       
         images, labels = images.to(device), labels.to(device)
 
         # forward pass (image -> model -> prediction)
         outputs = model(images)
         # loss calculation (measures how wrong the model is)
         loss = criterion(outputs, labels)
+        optimizer.zero_grad()
         # backpropogation
         loss.backward()
         # update weights
         optimizer.step()
+
+        if batch_idx % 50 == 0:
+            print(
+            f"Epoch {epoch+1}/{epochs} | "
+            f"Batch {batch_idx}/{len(train_loader)} | "
+            f"Loss: {loss.item():.4f}"
+          )
 
         train_loss += loss.item()
         _, predicted = torch.max(outputs, 1)
@@ -70,7 +80,7 @@ for epoch in range(epochs):
     val_total = 0
 
     with torch.no_grad():
-        for images, labels in val_loader():
+        for images, labels in val_loader:
             images, labels = images.to(device), labels.to(device)
 
             outputs = model(images)
@@ -85,7 +95,16 @@ for epoch in range(epochs):
 
 ## SAVE MODEL
 
-# save learned weights
-torch.save(model.state_dict(), "../models/plant_disease_model.pth")
-print(\n"Model saved!")
+save_path = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "..",
+    "models",
+    "plant_disease_model.pth"
+)
 
+# Create models directory if it doesn't exist
+os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+torch.save(model.state_dict(), save_path)
+
+print(f"\nModel saved to {save_path}")
