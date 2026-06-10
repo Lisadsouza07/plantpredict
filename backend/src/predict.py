@@ -48,8 +48,4 @@ def predict(image_path):
     predicted_label = class_names[predicted_class.item()]
     confidence_score = confidence.item()
 
-    print(f"Prediction: {predicted_label}")
-    print(f"Confidence: {confidence_score * 100:.2f}%")
-
-if __name__ == "__main__":
-    predict("tomatolead.jpg")
+    return predicted_label, float(confidence_score)
