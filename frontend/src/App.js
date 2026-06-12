@@ -1,52 +1,253 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, Leaf, AlertTriangle, CheckCircle2, X, Sprout } from "lucide-react";
 
+const FONT = "'Cormorant Garamond', serif";
 
-
-const FLOATING_LEAVES = [
-  { id: 1, emoji: "🌿", x: "4%", delay: 0, duration: 12 },
-  { id: 2, emoji: "🍃", x: "18%", delay: 2, duration: 14 },
-  { id: 3, emoji: "🌱", x: "78%", delay: 1, duration: 11 },
-  { id: 4, emoji: "🍀", x: "92%", delay: 3, duration: 13 },
-  { id: 5, emoji: "🌿", x: "50%", delay: 4, duration: 15 },
-  { id: 6, emoji: "🍃", x: "64%", delay: 0.5, duration: 10 },
+// Two layers of leaves — front layer (larger, faster) and back layer (smaller, slower)
+const LEAVES_BACK = [
+  { id: "b1", emoji: "🌿", x: "8%",  delay: 0,   duration: 18, size: "2.2rem", opacity: 0.3 },
+  { id: "b2", emoji: "🍃", x: "30%", delay: 3,   duration: 22, size: "2rem",   opacity: 0.25 },
+  { id: "b3", emoji: "🍀", x: "55%", delay: 1,   duration: 20, size: "1.8rem", opacity: 0.28 },
+  { id: "b4", emoji: "🌿", x: "75%", delay: 5,   duration: 19, size: "2.4rem", opacity: 0.3 },
+  { id: "b5", emoji: "🪴", x: "88%", delay: 2,   duration: 21, size: "1.9rem", opacity: 0.25 },
 ];
 
+const LEAVES_FRONT = [
+  { id: "f1", emoji: "🌿", x: "4%",  delay: 0,   duration: 12, size: "3rem",   opacity: 0.55 },
+  { id: "f2", emoji: "🪴", x: "18%", delay: 2,   duration: 14, size: "2.8rem", opacity: 0.5  },
+  { id: "f3", emoji: "🌱", x: "78%", delay: 1,   duration: 11, size: "2.5rem", opacity: 0.5  },
+  { id: "f4", emoji: "🍀", x: "92%", delay: 3,   duration: 13, size: "3.2rem", opacity: 0.55 },
+  { id: "f5", emoji: "🌿", x: "50%", delay: 4,   duration: 15, size: "2.6rem", opacity: 0.5  },
+  { id: "f6", emoji: "🪴", x: "64%", delay: 0.5, duration: 10, size: "2.8rem", opacity: 0.45 },
+];
+
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body, input, button, p, span, div, h1, h2, h3 {
+    font-family: 'Cormorant Garamond', serif;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .analyze-btn {
+    width: 100%;
+    margin-top: 1rem;
+    padding: 11px;
+    background: #2d6a4f;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: 500;
+    font-family: 'Cormorant Garamond', serif;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .analyze-btn:hover:not(:disabled) { background: #1b4332; }
+  .analyze-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.35);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  .drop-zone {
+    border: 1.5px dashed #b7d8c6;
+    border-radius: 10px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.15s;
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.dragover { background: #f0f9f4; }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 99px;
+  }
+`;
+
+function LeafLayer({ leaves, zIndex }) {
+  return (
+    <>
+      {leaves.map((leaf) => (
+        <motion.div
+          key={leaf.id}
+          style={{
+            position: "absolute",
+            left: leaf.x,
+            top: "-60px",
+            opacity: leaf.opacity,
+            fontSize: leaf.size,
+            pointerEvents: "none",
+            zIndex,
+            filter: zIndex === 1 ? "blur(1.5px)" : "none",
+          }}
+          animate={{
+            y: ["0vh", "110vh"],
+            rotate: [0, 360],
+            x: [0, 20, -14, 8, 0],
+          }}
+          transition={{
+            duration: leaf.duration,
+            delay: leaf.delay,
+            repeat: Infinity,
+            repeatDelay: leaf.delay + 2,
+            ease: "linear",
+          }}
+        >
+          {leaf.emoji}
+        </motion.div>
+      ))}
+    </>
+  );
+}
+
+function RankBadge({ rank, delay }) {
+  const colors = {
+    1: { bg: "#f8d96e", color: "#5c4200", shadow: "rgba(248,217,110,0.6)" },
+    2: { bg: "#d0d7df", color: "#2c3540", shadow: "rgba(208,215,223,0.6)" },
+    3: { bg: "#e8b87a", color: "#5c3300", shadow: "rgba(232,184,122,0.6)" },
+  };
+  const c = colors[rank] || colors[3];
+  return (
+    <motion.div
+      initial={{ scale: 0, rotate: -180 }}
+      animate={{ scale: 1, rotate: 0 }}
+      transition={{
+        delay,
+        duration: 0.5,
+        type: "spring",
+        stiffness: 260,
+        damping: 16,
+      }}
+      style={{
+        width: 26, height: 26, borderRadius: "50%",
+        background: c.bg, color: c.color,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 13, fontWeight: 600, flexShrink: 0,
+        fontFamily: FONT,
+        boxShadow: `0 0 0 3px ${c.shadow}`,
+      }}
+    >
+      {rank}
+    </motion.div>
+  );
+}
+
+function ResultCard({ pred, index }) {
+  const pct = (pred.confidence * 100).toFixed(1);
+  const isHealthy = pred.prediction.toLowerCase().includes("healthy");
+  const name = pred.prediction.replace(/_/g, " ");
+  const cardDelay = index * 0.14;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: cardDelay, ease: "easeOut" }}
+      style={{
+        background: "#f6faf7",
+        borderRadius: 10,
+        padding: "12px 14px",
+        border: "0.5px solid #d4eadb",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <RankBadge rank={index + 1} delay={cardDelay + 0.1} />
+        <span style={{ fontSize: 17, fontWeight: 500, flex: 1, color: "#1a2e1a", fontFamily: FONT }}>
+          {name}
+        </span>
+        <motion.span
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: cardDelay + 0.25, duration: 0.3 }}
+          style={{
+            fontSize: 13, padding: "2px 10px", borderRadius: 99, fontWeight: 500,
+            fontFamily: FONT,
+            background: isHealthy ? "#eaf3de" : "#fcebeb",
+            color: isHealthy ? "#3b6d11" : "#a32d2d",
+          }}
+        >
+          {isHealthy ? "Healthy" : "Disease"}
+        </motion.span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{
+          flex: 1, height: 4, background: "#ddeae0",
+          borderRadius: 99, overflow: "hidden",
+        }}>
+          <motion.div
+            className="bar-fill"
+            initial={{ width: 0 }}
+            animate={{ width: `${pct}%` }}
+            transition={{ duration: 0.9, delay: cardDelay + 0.3, ease: "easeOut" }}
+            style={{ background: isHealthy ? "#52b788" : "#e24b4a" }}
+          />
+        </div>
+        <span style={{ fontSize: 14, color: "#4a6a52", minWidth: 40, textAlign: "right", fontFamily: FONT }}>
+          {pct}%
+        </span>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function App() {
-const [file, setFile] = useState(null);
-const [preview, setPreview] = useState(null);
-const [result, setResult] = useState(null);
-const [error, setError] = useState(null);
-const [loading, setLoading] = useState(false);
-const [dragging, setDragging] = useState(false);
-const inputRef = useRef(null);
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [predictions, setPredictions] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef(null);
 
   const handleFileChange = (selectedFile) => {
+    if (!selectedFile || !selectedFile.type.startsWith("image/")) return;
     setFile(selectedFile);
-    setResult(null);
+    setPredictions(null);
     setError(null);
     setPreview(URL.createObjectURL(selectedFile));
-  };
-
-  const handleInputChange = (e) => {
-    if (e.target.files?.[0]) handleFileChange(e.target.files[0]);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     setDragging(false);
-    const dropped = e.dataTransfer.files[0];
-    if (dropped && dropped.type.startsWith("image/")) handleFileChange(dropped);
+    handleFileChange(e.dataTransfer.files[0]);
+  };
+
+  const clearImage = () => {
+    setFile(null);
+    setPreview(null);
+    setPredictions(null);
+    setError(null);
+    if (inputRef.current) inputRef.current.value = "";
   };
 
   const handleUpload = async () => {
     if (!file) return;
+    setLoading(true);
+    setPredictions(null);
+    setError(null);
+
     const formData = new FormData();
     formData.append("file", file);
-    setLoading(true);
-    setResult(null);
-    setError(null);
+
     try {
       const response = await fetch("http://127.0.0.1:8000/predict", {
         method: "POST",
@@ -54,421 +255,215 @@ const inputRef = useRef(null);
       });
       if (!response.ok) throw new Error("Server error");
       const data = await response.json();
-      setResult(data);
-    } catch {
-      setError("Could not reach the prediction server. Make sure it's running at localhost:8000.");
+
+      const preds =
+        data.predictions ??
+        (data.prediction
+          ? [{ prediction: data.prediction, confidence: data.confidence }]
+          : null);
+
+      if (!preds || !preds.length) throw new Error("Unexpected response format from server.");
+      setPredictions(preds.slice(0, 3));
+    } catch (err) {
+      setError(
+        err.message.includes("fetch")
+          ? "Could not reach the prediction server. Make sure it's running at localhost:8000."
+          : err.message
+      );
     }
+
     setLoading(false);
   };
 
-  const clearImage = () => {
-    setFile(null);
-    setPreview(null);
-    setResult(null);
-    setError(null);
-    if (inputRef.current) inputRef.current.value = "";
-  };
-
-  const isHealthy = result?.prediction?.toLowerCase().includes("healthy");
-  const confidencePct = result ? (result.confidence * 100).toFixed(1) : "0";
-
   return (
-    <div
-      className="min-h-screen relative overflow-hidden"
-      style={{ background: "linear-gradient(160deg, #ffffff 0%, #f0f9f0 40%, #e8f5e8 100%)" }}
-    >
-      {/* Subtle green radial accent top-right */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse 55% 45% at 85% 10%, rgba(82,183,136,0.12) 0%, transparent 65%), radial-gradient(ellipse 40% 35% at 10% 90%, rgba(45,106,79,0.08) 0%, transparent 60%)",
-        }}
-      />
+    <>
+      <style>{styles}</style>
+      <div style={{
+        minHeight: "100vh",
+        background: "linear-gradient(160deg, #e8f5e8 0%, #d4edda 40%, #b8dfc4 100%)",
+        position: "relative",
+        overflow: "hidden",
+        fontFamily: FONT,
+      }}>
 
-      {/* Floating leaves — very soft */}
-      {FLOATING_LEAVES.map((leaf) => (
-        <motion.div
-          key={leaf.id}
-          className="absolute pointer-events-none select-none text-xl"
-          style={{ left: leaf.x, top: "-40px", opacity: 0.12 }}
-          animate={{ y: ["0vh", "110vh"], rotate: [0, 360], x: [0, 20, -15, 8, 0] }}
-          transition={{
-            duration: leaf.duration,
-            delay: leaf.delay,
-            repeat: Infinity,
-            repeatDelay: leaf.delay + 3,
-            ease: "linear",
-          }}
-        >
-          {leaf.emoji}
-        </motion.div>
-      ))}
+        {/* Back leaf layer — blurred, slower, lighter */}
+        <LeafLayer leaves={LEAVES_BACK} zIndex={1} />
 
-      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-16">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="text-center mb-12"
-        >
-          {/* Leaf icon mark */}
+        {/* Front leaf layer — sharp, faster, darker */}
+        <LeafLayer leaves={LEAVES_FRONT} zIndex={2} />
+
+        <div style={{
+          position: "relative", zIndex: 10,
+          minHeight: "100vh", display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          padding: "4rem 1rem",
+        }}>
+
+          {/* Header */}
           <motion.div
-            className="flex justify-center mb-4"
-            animate={{ y: [0, -4, 0] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            initial={{ opacity: 0, y: -24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            style={{ textAlign: "center", marginBottom: "2.5rem" }}
           >
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, #2d6a4f, #52b788)" }}
+            <motion.div
+              animate={{ y: [0, -5, 0] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              style={{
+                width: 56, height: 56, borderRadius: 14,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                margin: "0 auto 1rem", fontSize: 26,
+              }}
             >
-              <Leaf size={28} color="white" />
-            </div>
+            </motion.div>
+            <h1 style={{ fontSize: "2.8rem", fontWeight: 500, color: "#1a2e1a", fontFamily: FONT, margin: 0 }}>
+              Plant Disease Detector 🌱
+            </h1>
+            <p style={{ fontSize: 18, color: "#4a6a52", marginTop: 6, fontFamily: FONT }}>
+              Is your plant healthy? Upload an image to find out!
+            </p>
           </motion.div>
 
-          <h1
-            className="text-[#1a2e1a]"
+          {/* Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.2, ease: "easeOut" }}
             style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontSize: "2.8rem",
-              fontWeight: 500,
-              letterSpacing: "0.04em",
-              lineHeight: 1.1,
+              background: "white",
+              border: "0.5px solid #d4eadb",
+              borderRadius: 16,
+              padding: "1.5rem",
+              width: "100%",
+              maxWidth: 440,
+              boxShadow: "0 2px 24px rgba(45,106,79,0.06)",
             }}
           >
-            Plant Disease Detector
-          </h1>
-          <p
-            className="mt-2"
-            style={{
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: "0.9rem",
-              color: "#5a8a6a",
-              fontWeight: 300,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-            }}
-          >
-            Give your plant a quick health check 🌱
-          </p>
-        </motion.div>
-
-        {/* Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.2 }}
-          className="w-full max-w-md"
-          style={{
-            background: "#ffffff",
-            border: "1px solid rgba(45,106,79,0.12)",
-            borderRadius: "24px",
-            boxShadow: "0 4px 40px rgba(45,106,79,0.08), 0 1px 4px rgba(45,106,79,0.06)",
-          }}
-        >
-          <div className="p-7">
             {/* Drop zone */}
-            <motion.div
+            <div
+              className={`drop-zone${dragging ? " dragover" : ""}`}
               onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
               onDragLeave={() => setDragging(false)}
               onDrop={handleDrop}
-              onClick={() => !preview && inputRef.current?.click()}
-              animate={dragging ? { scale: 1.015 } : { scale: 1 }}
-              transition={{ duration: 0.15 }}
-              className="relative rounded-2xl cursor-pointer overflow-hidden"
-              style={{
-                border: `1.5px dashed ${dragging ? "#2d6a4f" : preview ? "rgba(45,106,79,0.25)" : "rgba(45,106,79,0.2)"}`,
-                background: dragging ? "rgba(82,183,136,0.05)" : "rgba(238,246,238,0.5)",
-                minHeight: preview ? "auto" : "190px",
-                transition: "border-color 0.2s, background 0.2s",
-              }}
+              onClick={() => inputRef.current?.click()}
             >
               <input
                 ref={inputRef}
                 type="file"
                 accept="image/*"
-                onChange={handleInputChange}
-                className="hidden"
+                style={{ display: "none" }}
+                onChange={(e) => { if (e.target.files?.[0]) handleFileChange(e.target.files[0]); }}
               />
-
-              <AnimatePresence mode="wait">
-                {preview ? (
-                  <motion.div
-                    key="preview"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="relative"
-                  >
-                    <img
-                      src={preview}
-                      alt="Uploaded plant"
-                      className="w-full rounded-xl object-cover max-h-60"
-                    />
-                    <button
-                      onClick={(e) => { e.stopPropagation(); clearImage(); }}
-                      className="absolute top-2 right-2 rounded-full p-1.5 transition-colors"
-                      style={{
-                        background: "rgba(255,255,255,0.92)",
-                        border: "1px solid rgba(45,106,79,0.2)",
-                        boxShadow: "0 1px 6px rgba(0,0,0,0.08)",
-                      }}
-                    >
-                      <X size={14} style={{ color: "#2d6a4f" }} />
-                    </button>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="empty"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex flex-col items-center justify-center gap-3 py-12 px-4"
-                  >
-                    <motion.div
-                      animate={dragging ? { scale: 1.15, rotate: 8 } : { scale: 1, rotate: 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <Upload size={36} style={{ color: "#52b788", opacity: 0.8 }} />
-                    </motion.div>
-                    <div className="text-center">
-                      <p
-                        style={{
-                          fontFamily: "'DM Sans', sans-serif",
-                          color: "#1a2e1a",
-                          fontWeight: 400,
-                          fontSize: "0.95rem",
-                        }}
-                      >
-                        {dragging ? "Release to upload" : "Drag & drop a leaf photo"}
-                      </p>
-                      <p
-                        className="mt-1"
-                        style={{
-                          fontFamily: "'DM Sans', sans-serif",
-                          color: "#5a8a6a",
-                          fontSize: "0.8rem",
-                          fontWeight: 300,
-                        }}
-                      >
-                        or click to browse
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3 my-5">
-              <div className="flex-1 h-px" style={{ background: "rgba(45,106,79,0.1)" }} />
-              <span
-                style={{
-                  fontFamily: "'DM Sans', sans-serif",
-                  fontSize: "0.7rem",
-                  color: "#5a8a6a",
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  fontWeight: 400,
-                }}
-              >
-                Analysis
-              </span>
-              <div className="flex-1 h-px" style={{ background: "rgba(45,106,79,0.1)" }} />
+              <div style={{ fontSize: 28, marginBottom: 8 }}>📤</div>
+              <p style={{ fontSize: 17, color: "#4a6a52", fontFamily: FONT }}>
+                Drop a photo here or click to browse
+              </p>
+              <p style={{ fontSize: 14, color: "#8aab90", marginTop: 4, fontFamily: FONT }}>
+                JPG · PNG · WEBP
+              </p>
             </div>
 
+            {/* Preview */}
+            <AnimatePresence>
+              {preview && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.3 }}
+                  style={{ position: "relative", marginTop: "1rem" }}
+                >
+                  <img
+                    src={preview}
+                    alt="Selected plant"
+                    style={{
+                      width: "100%", borderRadius: 10,
+                      maxHeight: 200, objectFit: "cover", display: "block",
+                    }}
+                  />
+                  <button
+                    onClick={clearImage}
+                    style={{
+                      position: "absolute", top: 6, right: 6,
+                      background: "rgba(0,0,0,0.55)", border: "none",
+                      borderRadius: "50%", width: 26, height: 26,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", color: "white", fontSize: 14,
+                    }}
+                    aria-label="Remove image"
+                  >
+                    ✕
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Analyze button */}
-            <motion.button
+            <button
+              className="analyze-btn"
               onClick={handleUpload}
               disabled={!file || loading}
-              whileTap={file && !loading ? { scale: 0.98 } : {}}
-              whileHover={file && !loading ? { scale: 1.015 } : {}}
-              className="w-full py-3.5 rounded-xl flex items-center justify-center gap-2.5 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{
-                background: file && !loading
-                  ? "linear-gradient(135deg, #2d6a4f 0%, #52b788 100%)"
-                  : "rgba(45,106,79,0.08)",
-                color: file && !loading ? "#ffffff" : "#5a8a6a",
-                border: "none",
-                fontFamily: "'DM Sans', sans-serif",
-                fontSize: "0.9rem",
-                fontWeight: 500,
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-                boxShadow: file && !loading ? "0 4px 20px rgba(45,106,79,0.25)" : "none",
-                transition: "all 0.3s ease",
-              }}
             >
-              {loading ? (
-                <>
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
-                  >
-                    <Sprout size={17} />
-                  </motion.div>
-                  Analyzing…
-                </>
-              ) : (
-                <>
-                  <Leaf size={17} />
-                  Diagnose Plant
-                </>
-              )}
-            </motion.button>
+              {loading
+                ? <><div className="spinner" /> Analysing…</>
+                : <>🔬 Analyse plant</>
+              }
+            </button>
 
             {/* Error */}
             <AnimatePresence>
               {error && (
                 <motion.div
-                  initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                  animate={{ opacity: 1, height: "auto", marginTop: 16 }}
-                  exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                  className="rounded-xl px-4 py-3 flex items-start gap-2.5"
-                  style={{ background: "rgba(192,57,43,0.06)", border: "1px solid rgba(192,57,43,0.2)" }}
-                >
-                  <AlertTriangle size={16} style={{ color: "#c0392b", marginTop: 2, flexShrink: 0 }} />
-                  <p
-                    style={{
-                      fontFamily: "'DM Sans', sans-serif",
-                      color: "#c0392b",
-                      fontSize: "0.82rem",
-                      fontWeight: 300,
-                    }}
-                  >
-                    {error}
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Result */}
-            <AnimatePresence>
-              {result && (
-                <motion.div
-                  initial={{ opacity: 0, y: 16 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.5, ease: "easeOut" }}
-                  className="mt-5 rounded-2xl p-5"
+                  transition={{ duration: 0.3 }}
                   style={{
-                    background: isHealthy
-                      ? "linear-gradient(135deg, rgba(82,183,136,0.08), rgba(45,106,79,0.04))"
-                      : "linear-gradient(135deg, rgba(192,57,43,0.07), rgba(192,57,43,0.03))",
-                    border: `1px solid ${isHealthy ? "rgba(45,106,79,0.18)" : "rgba(192,57,43,0.18)"}`,
+                    background: "#fcebeb", border: "0.5px solid #f09595",
+                    borderRadius: 8, padding: "10px 14px", marginTop: "1rem",
+                    fontSize: 16, color: "#a32d2d", display: "flex", gap: 8,
+                    fontFamily: FONT,
                   }}
                 >
-                  {/* Status */}
-                  <div className="flex items-center gap-2.5 mb-3">
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 0.15, type: "spring", stiffness: 280 }}
-                    >
-                      {isHealthy ? (
-                        <CheckCircle2 size={20} style={{ color: "#2d6a4f" }} />
-                      ) : (
-                        <AlertTriangle size={20} style={{ color: "#c0392b" }} />
-                      )}
-                    </motion.div>
-                    <span
-                      className="px-3 py-0.5 rounded-full"
-                      style={{
-                        fontFamily: "'DM Sans', sans-serif",
-                        fontSize: "0.72rem",
-                        fontWeight: 500,
-                        letterSpacing: "0.1em",
-                        textTransform: "uppercase",
-                        background: isHealthy ? "rgba(45,106,79,0.1)" : "rgba(192,57,43,0.1)",
-                        color: isHealthy ? "#2d6a4f" : "#c0392b",
-                      }}
-                    >
-                      {isHealthy ? "Healthy" : "Disease Detected"}
-                    </span>
-                  </div>
-
-                  {/* Prediction name */}
-                  <p
-                    className="mb-4"
-                    style={{
-                      fontFamily: "'Cormorant Garamond', serif",
-                      fontSize: "1.25rem",
-                      fontWeight: 500,
-                      color: "#1a2e1a",
-                      fontStyle: "italic",
-                      lineHeight: 1.3,
-                    }}
-                  >
-                    {result.prediction}
-                  </p>
-
-                  {/* Confidence bar */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span
-                        style={{
-                          fontFamily: "'DM Sans', sans-serif",
-                          fontSize: "0.72rem",
-                          color: "#5a8a6a",
-                          letterSpacing: "0.08em",
-                          textTransform: "uppercase",
-                          fontWeight: 400,
-                        }}
-                      >
-                        Confidence
-                      </span>
-                      <span
-                        style={{
-                          fontFamily: "'Cormorant Garamond', serif",
-                          fontSize: "1.05rem",
-                          fontWeight: 600,
-                          color: isHealthy ? "#2d6a4f" : "#c0392b",
-                        }}
-                      >
-                        {confidencePct}%
-                      </span>
-                    </div>
-                    <div
-                      className="w-full rounded-full overflow-hidden"
-                      style={{ height: "3px", background: "rgba(45,106,79,0.1)" }}
-                    >
-                      <motion.div
-                        className="h-full rounded-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${confidencePct}%` }}
-                        transition={{ duration: 1, delay: 0.3, ease: "easeOut" }}
-                        style={{
-                          background: isHealthy
-                            ? "linear-gradient(90deg, #2d6a4f, #52b788)"
-                            : "linear-gradient(90deg, #c0392b, #e74c3c)",
-                        }}
-                      />
-                    </div>
-                  </div>
+                  ⚠️ {error}
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
-        </motion.div>
 
-        {/* Footer */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.9 }}
-          className="mt-8 text-center"
-          style={{
-            fontFamily: "'DM Sans', sans-serif",
-            fontSize: "0.72rem",
-            color: "#5a8a6a",
-            opacity: 0.5,
-            letterSpacing: "0.06em",
-          }}
-        >
-          JPG · PNG · WEBP &nbsp;·&nbsp; Backend required at localhost:8000
-        </motion.p>
+            {/* Results */}
+            <AnimatePresence>
+              {predictions && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.4 }}
+                  style={{ marginTop: "1.25rem" }}
+                >
+                  <hr style={{ border: "none", borderTop: "0.5px solid #d4eadb", marginBottom: "1rem" }} />
+                  <p style={{ fontSize: 13, color: "#8aab90", marginBottom: 10, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: FONT }}>
+                    Top {predictions.length} predictions
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {predictions.map((pred, i) => (
+                      <ResultCard key={i} pred={pred} index={i} />
+                    ))}
+                  </div>
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.8 }}
+                    style={{ fontSize: 13, color: "#8aab90", textAlign: "center", marginTop: "1rem", fontFamily: FONT }}
+                  >
+                    Backend required at localhost:8000
+                  </motion.p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+          </motion.div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

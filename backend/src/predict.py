@@ -41,11 +41,14 @@ def predict(image_path):
 
     with torch.no_grad():
         outputs = model(image)
-        probabilites = F.softmax(outputs, dim = 1)
+        probabilities = F.softmax(outputs, dim=1)
+        top_probs, top_classes = torch.topk(probabilities, 3)
+    predictions = []
 
-        confidence, predicted_class = torch.max(probabilites, 1)
-    
-    predicted_label = class_names[predicted_class.item()]
-    confidence_score = confidence.item()
+    for prob, cls in zip(top_probs[0], top_classes[0]):
+        predictions.append({
+            "prediction": class_names[cls.item()],
+            "confidence": float(prob.item())
+        })
 
-    return predicted_label, float(confidence_score)
+    return predictions

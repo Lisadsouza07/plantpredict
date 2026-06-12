@@ -36,9 +36,9 @@ async def predict_image(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, buffer)
 
     # run model
-    label, confidence = predict(file_path)
+
+    predictions = predict(file_path)
 
     return {
-        "prediction": label,
-        "confidence": confidence
+        "predictions": predictions
     }
