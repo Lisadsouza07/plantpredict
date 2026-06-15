@@ -455,7 +455,7 @@ export default function App() {
                     transition={{ delay: 0.8 }}
                     style={{ fontSize: 13, color: "#8aab90", textAlign: "center", marginTop: "1rem", fontFamily: FONT }}
                   >
-                    Backend required at localhost:8000
+                    
                   </motion.p>
                 </motion.div>
               )}
