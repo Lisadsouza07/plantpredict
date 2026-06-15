@@ -16,7 +16,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 num_classes = 15
 model = get_model(num_classes)
 
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 MODEL_PATH = os.path.join(BASE_DIR, "models", "plant_disease_model.pth")
 CLASS_PATH = os.path.join(BASE_DIR, "models", "classes.json")
