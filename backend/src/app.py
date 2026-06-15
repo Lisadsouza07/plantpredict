@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import shutil
 import os
 
-from predict import predict
+from src.predict import predict
 
 app = FastAPI()
 
