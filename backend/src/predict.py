@@ -3,6 +3,7 @@
 # leaf image -> preprocess image -> load trained model -> predict disease -> return class + confidence
 
 # imports
+import os
 import torch
 import json
 import torch.nn.functional as F
@@ -10,19 +11,22 @@ from PIL import Image
 from torchvision import transforms
 from src.model import get_model
 
-# load model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-num_classes = 15  # or load dynamically later
-
+num_classes = 15
 model = get_model(num_classes)
-model.load_state_dict(torch.load("../models/plant_disease_model.pth", map_location=device))
+
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+MODEL_PATH = os.path.join(BASE_DIR, "models", "plant_disease_model.pth")
+CLASS_PATH = os.path.join(BASE_DIR, "models", "classes.json")
+
+model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
 model = model.to(device)
 model.eval()
 
-with open("../models/classes.json", "r") as f:
+with open(CLASS_PATH, "r") as f:
     class_names = json.load(f)
-
 # image preprocessing
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
