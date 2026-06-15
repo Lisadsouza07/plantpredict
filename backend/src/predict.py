@@ -8,7 +8,7 @@ import json
 import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
-from model import get_model
+from src.model import get_model
 
 # load model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
